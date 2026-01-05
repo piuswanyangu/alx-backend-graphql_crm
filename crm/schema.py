@@ -5,6 +5,11 @@ from django.db  import transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from graphene_django.filter import DjangoFilterConnectionField
+from graphene import relay
+from django_filters import OrderingFilter
+
+from .filters import CustomerFilter, ProductFilter, OrderFilter
 
 from .models import Customer, Product, Order
 
@@ -17,19 +22,21 @@ from .models import Customer, Product, Order
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer 
-        fields = " __all__"
-
+        interfaces = (relay.Node,)
+        filterset_class = CustomerFilter
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
-        fields = "__all__"
+        interfaces = (relay.Node,)
+        filterset_class = OrderFilter
 
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
-        fields = "__all__"
+        interfaces = (relay.Node,)
+        filterset_class = OrderFilter
 
 # -----------------------------------------
 
@@ -50,6 +57,7 @@ def validate_phone(phone):
 
     # --------------------------------------
 class CreateCustomer(graphene.Mutation):
+    """ mutation to create  a single customer"""
     customer = graphene.Field(CustomerType)
     message = graphene.String()
 
@@ -59,11 +67,14 @@ class CreateCustomer(graphene.Mutation):
         phone = graphene.String()
 
     def mutate(self,info, name, email, phone=None):
+        # check for duplicate email
         if Customer.objects.filter(email=email).exists():
             raise Exception("Email already exists")
-            
+
+        # validate phone format 
         validate_phone(phone)
 
+        # save customer
         customer = Customer.objects.create(
             name=name,
             email=email,
@@ -178,19 +189,29 @@ class CreateOrder(graphene.Mutation):
 # Root Mutation & Query
 # -----------------------------
 class Query(graphene.ObjectType):
-    customers = graphene.List(CustomerType)
-    products = graphene.List(ProductType)
-    orders = graphene.List(OrderType)
+    all_customers = DjangoFilterConnectionField(CustomerType, order_by=graphene.String())
+    all_products = DjangoFilterConnectionField(ProductType, order_by=graphene.String())
+    all_orders  = DjangoFilterConnectionField(OrderType, order_by=graphene.String())
 
-    def resolve_customer(root, info):
-        return Customer.Objects.all()
+    def resolve_all_customers(self, info, **kwargs):
+        qs = Customer.objects.all()
+        order_by = kwargs.get("order_by")
+        return qs 
     
-    def resolve_products(root, info):
-        return Product.objects.all()
+    def resolve_all_products(self, info, **kwargs ):
+        qs =Product.object.all()
+        order_by = kwargs.get("order_by")
+        if order_by:
+            qs = qs.order_by(order_by)
+        return qs 
     
-    def resolve_orders(root,  info):
-        return Order.objects.all()
     
+    def resolve_all_orders(self, info, **kwargs):
+        qs = Order.objects.all()
+        order_by = kwargs.get("order_by")
+        if order_by:
+            qs = qs.order_by(order_by)
+        return qs 
     class Mutation(graphene.ObjectType):
         create_customer = CreateCustomer.Field()
         bulk_create_customers = BulkCreateCustomers.Field()
