@@ -2,25 +2,18 @@ from datetime import datetime
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
-LOG_FILE = "/tmp/crm_heartbeat_log.txt"
+LOG_FILE = "/tmp/low_stock_updates_log.txt"
 GRAPHQL_URL = "http://localhost:8000/graphql"
 
 
-def log_crm_heartbeat():
+def update_low_stock():
     """
-    Logs a heartbeat message every 5 minutes
-    and verifies GraphQL endpoint availability.
+    Runs every 12 hours to restock low inventory products
+    using a GraphQL mutation.
     """
 
-    # Timestamp in required format
     timestamp = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
-    log_message = f"{timestamp} CRM is alive\n"
 
-    # Append heartbeat log
-    with open(LOG_FILE, "a") as file:
-        file.write(log_message)
-
-    # GraphQL health check using gql (REQUIRED by checker)
     transport = RequestsHTTPTransport(
         url=GRAPHQL_URL,
         verify=True,
@@ -32,16 +25,32 @@ def log_crm_heartbeat():
         fetch_schema_from_transport=False
     )
 
-    query = gql(
+    mutation = gql(
         """
-        query {
-            hello
+        mutation {
+            updateLowStockProducts {
+                success
+                products {
+                    name
+                    stock
+                }
+            }
         }
         """
     )
 
     try:
-        client.execute(query)
+        result = client.execute(mutation)
+        products = result["updateLowStockProducts"]["products"]
+
+        with open(LOG_FILE, "a") as file:
+            for product in products:
+                log_line = (
+                    f"{timestamp} | "
+                    f"{product['name']} restocked to {product['stock']}\n"
+                )
+                file.write(log_line)
+
     except Exception:
-        # Never crash cron jobs
+        # Cron jobs must never crash
         pass

@@ -8,6 +8,7 @@ from decimal import Decimal
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene import relay
 from django_filters import OrderingFilter
+from .models import Product
 
 from .filters import CustomerFilter, ProductFilter, OrderFilter
 
@@ -25,11 +26,44 @@ class CustomerType(DjangoObjectType):
         interfaces = (relay.Node,)
         filterset_class = CustomerFilter
 
-class ProductType(DjangoObjectType):
-    class Meta:
-        model = Product
-        interfaces = (relay.Node,)
-        filterset_class = OrderFilter
+class ProductType(graphene.ObjectType):
+    id = graphene.ID()
+    name = graphene.String()
+    stock = graphene.Int()
+
+
+class UpdateLowStockProducts(graphene.Mutation):
+    success = graphene.String()
+    products = graphene.List(ProductType)
+
+    class Arguments:
+        pass
+
+    @classmethod
+    def mutate(cls, root, info):
+        updated_products = []
+
+        with transaction.atomic():
+            low_stock_products = Product.objects.filter(stock__lt=10)
+
+            for product in low_stock_products:
+                product.stock += 10
+                product.save()
+
+                updated_products.append(
+                    ProductType(
+                        id=product.id,
+                        name=product.name,
+                        stock=product.stock
+                    )
+                )
+
+        return UpdateLowStockProducts(
+            success="Low stock products updated successfully",
+            products=updated_products
+        )
+class Mutation(graphene.ObjectType):
+    update_low_stock_products = UpdateLowStockProducts.Field()
 
 
 class OrderType(DjangoObjectType):
