@@ -8,7 +8,7 @@ from decimal import Decimal
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene import relay
 from django_filters import OrderingFilter
-from .models import Product
+from crm.models import Product
 
 from .filters import CustomerFilter, ProductFilter, OrderFilter
 
