@@ -11,20 +11,15 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-wnc1)!q73%qj@=9m*rg$_=$4f5*oq6+b_5ernm8-%z2w-(rjy_'
-
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 ALLOWED_HOSTS = []
 
 
@@ -41,13 +36,10 @@ INSTALLED_APPS = [
     'graphene_django',
     'django_filters',
 
-    'crm',
-    'django_crontab',
-    'django_celery_beat',
-
-    
+    'crm',                   # Your CRM app
+    'django_crontab',         # Cron jobs
+    'django_celery_beat',     # Celery Beat scheduler
 ]
-
 
 GRAPHENE = {
     "SCHEMA": "alx_backend_graphql_crm.schema.schema"
@@ -85,8 +77,6 @@ WSGI_APPLICATION = 'alx_backend_graphql_crm.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -96,8 +86,6 @@ DATABASES = {
 
 
 # Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -115,27 +103,43 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# -----------------------------
+# Cron jobs
+# -----------------------------
 CRONJOBS = [
+    # Logs CRM heartbeat every 5 minutes
     ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'),
 ]
+
+
+# -----------------------------
+# Celery configuration
+# -----------------------------
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_TIMEZONE = 'UTC'
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CELERY_BEAT_SCHEDULE = {
+    # Weekly CRM report every Monday at 6:00 AM
+    'generate-crm-report': {
+        'task': 'crm.tasks.generatecrmreport',
+        'schedule': crontab(day_of_week='mon', hour=6, minute=0),
+    },
+}

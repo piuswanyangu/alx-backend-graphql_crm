@@ -1,16 +1,17 @@
 from celery import shared_task
 from datetime import datetime
+import requests
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
-LOG_FILE = "/tmp/crm_report_log.txt"
 GRAPHQL_URL = "http://localhost:8000/graphql"
+LOG_FILE = "/tmp/crmreportlog.txt"
 
 
 @shared_task
-def generate_crm_report():
+def generatecrmreport():
     """
-    Generates a weekly CRM report using GraphQL data.
+    Generates a weekly CRM report using GraphQL.
     """
 
     transport = RequestsHTTPTransport(
@@ -50,7 +51,7 @@ def generate_crm_report():
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        log_entry = (
+        log_line = (
             f"{timestamp} - Report: "
             f"{total_customers} customers, "
             f"{total_orders} orders, "
@@ -58,8 +59,7 @@ def generate_crm_report():
         )
 
         with open(LOG_FILE, "a") as file:
-            file.write(log_entry)
+            file.write(log_line)
 
     except Exception:
-        # Celery tasks must never crash the worker
         pass
