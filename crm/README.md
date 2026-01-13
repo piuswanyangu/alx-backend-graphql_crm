@@ -171,3 +171,14 @@ Project is ready for manual and peer review
 Pius Ndubi
 Backend / Full-Stack Developer
 Django · GraphQL · Automation · Cron · Celery
+
+# CRM Weekly Report Automation
+
+This project uses Celery and Celery Beat to generate a weekly CRM report using GraphQL data.
+
+## Setup Instructions
+
+### 1. Install Redis
+```bash
+sudo apt update
+sudo apt install redis-server
