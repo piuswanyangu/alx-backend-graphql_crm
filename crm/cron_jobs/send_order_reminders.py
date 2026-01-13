@@ -1,54 +1,67 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timedelta
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
+from datetime import datetime, timedelta
 
 # GraphQL endpoint
 GRAPHQL_URL = "http://localhost:8000/graphql"
 
-# Time range: last 7 days
-seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+# Log file path
+LOG_FILE = "/tmp/order_reminders_log.txt"
 
-# GraphQL query
-query = gql("""
-query GetRecentOrders($dateFrom: DateTime!) {
-  orders(orderDate_Gte: $dateFrom) {
-    id
-    customer {
-      email
-    }
-    orderDate
-  }
-}
-""")
 
-# Transport setup
-transport = RequestsHTTPTransport(
-    url=GRAPHQL_URL,
-    verify=False,
-    retries=3,
-)
+def main():
+    # 1. Calculate date range (last 7 days)
+    today = datetime.utcnow()
+    last_week = today - timedelta(days=7)
 
-client = Client(
-    transport=transport,
-    fetch_schema_from_transport=False,
-)
+    # Convert to ISO format (GraphQL-friendly)
+    last_week_iso = last_week.isoformat()
 
-# Execute query
-result = client.execute(
-    query,
-    variable_values={"dateFrom": seven_days_ago}
-)
+    # 2. Setup GraphQL transport
+    transport = RequestsHTTPTransport(
+        url=GRAPHQL_URL,
+        verify=True,
+        retries=3,
+    )
 
-# Log file
-log_file = "/tmp/order_reminders_log.txt"
-timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 3. Create GraphQL client
+    client = Client(transport=transport, fetch_schema_from_transport=True)
 
-with open(log_file, "a") as f:
-    for order in result.get("orders", []):
-        order_id = order["id"]
-        email = order["customer"]["email"]
-        f.write(f"[{timestamp}] Order ID: {order_id}, Email: {email}\n")
+    # 4. GraphQL query
+    query = gql(
+        """
+        query GetRecentOrders($orderDate: DateTime!) {
+            orders(orderDate_Gte: $orderDate) {
+                id
+                customer {
+                    email
+                }
+            }
+        }
+        """
+    )
 
-print("Order reminders processed!")
+    # 5. Execute query
+    result = client.execute(
+        query,
+        variable_values={"orderDate": last_week_iso}
+    )
+
+    # 6. Write results to log file
+    with open(LOG_FILE, "a") as log_file:
+        for order in result.get("orders", []):
+            log_entry = (
+                f"{datetime.utcnow().isoformat()} | "
+                f"Order ID: {order['id']} | "
+                f"Customer Email: {order['customer']['email']}\n"
+            )
+            log_file.write(log_entry)
+
+    # 7. Console output
+    print("Order reminders processed!")
+
+
+if __name__ == "__main__":
+    main()
