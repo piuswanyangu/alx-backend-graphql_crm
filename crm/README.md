@@ -182,3 +182,28 @@ This project uses Celery and Celery Beat to generate a weekly CRM report using G
 ```bash
 sudo apt update
 sudo apt install redis-server
+
+# CRM Weekly Report Automation
+
+This CRM uses Celery and Celery Beat to generate weekly reports using GraphQL.
+
+## Setup Steps
+
+1. Install Redis
+sudo apt update
+sudo apt install redis-server
+
+2. Install dependencies
+pip install -r requirements.txt
+
+3. Run migrations
+python manage.py migrate
+
+4. Start Celery worker
+celery -A crm worker -l info
+
+5. Start Celery Beat
+celery -A crm beat -l info
+
+6. Verify logs
+cat /tmp/crmreportlog.txt
